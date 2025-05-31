@@ -1,10 +1,14 @@
 import { View, Text, ScrollView, Image, Alert } from "react-native";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { icons, images } from "@/constants";
 import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
 import { Link, useRouter } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
+import * as WebBrowser from 'expo-web-browser'
+import * as AuthSession from 'expo-auth-session'
+import { useSSO } from '@clerk/clerk-expo'
+
 
 const SignIn = () => {
   const { signIn, setActive, isLoaded } = useSignIn()
@@ -14,6 +18,19 @@ const SignIn = () => {
     email: '',
     password:''
   })
+    const { startSSOFlow } = useSSO()
+
+
+
+   useEffect(() => {
+
+    void WebBrowser.warmUpAsync()
+    return () => {
+      void WebBrowser.coolDownAsync()
+    }
+   }, [])
+  
+  WebBrowser.maybeCompleteAuthSession()
 
 
   const onSignInPress = async () => {
@@ -43,6 +60,29 @@ const SignIn = () => {
       
     }
   }
+
+
+  const handleOAuthLogin = useCallback(async () => {
+    try {
+     
+      const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
+        strategy: 'oauth_google',
+        
+        redirectUrl: AuthSession.makeRedirectUri(),
+      })
+
+   
+      if (createdSessionId) {
+        setActive!({ session: createdSessionId })
+        router.push('/(root)/(tabs)/home')
+      } else {
+       
+      }
+    } catch (err) {
+     
+      console.error(JSON.stringify(err, null, 2))
+    }
+  }, [])
 
 
 
@@ -104,6 +144,7 @@ const SignIn = () => {
             title="Sign-In with google"
             IconLeft={icons.google}
             textVariant="primary"
+            onPress={handleOAuthLogin}
 
           />
 

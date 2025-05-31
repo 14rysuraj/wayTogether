@@ -60,6 +60,8 @@ const Chat = () => {
   }, [runningTrip?._id, user?.id]);
 
 
+  // console.log(runningTrip)
+
 if (!runningTrip) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -84,23 +86,30 @@ if (!runningTrip) {
     setInput('');
   };
 
-  const renderItem = ({ item }: { item: Message }) => {
-    const isMe = user && item.senderId === user.id;
-    return (
-      <View
+ const renderItem = ({ item }: { item: Message }) => {
+  const isMe = user && item.senderId === user.id;
+  return (
+    <View
+      style={[
+        styles.messageContainer,
+        isMe ? styles.myMessage : styles.otherMessage,
+      ]}
+    >
+      {!isMe && <Text style={styles.senderName}>{item.senderName.split("@")[0]}</Text>}
+      <Text
         style={[
-          styles.messageContainer,
-          isMe ? styles.myMessage : styles.otherMessage,
+          styles.messageText,
+          isMe && { color: '#fff' }, // Make my messages white
         ]}
       >
-        {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
-        <Text style={styles.messageText}>{item.message}</Text>
-        <Text style={styles.timestamp}>
-          {new Date(item.timestamp).toLocaleTimeString()}
-        </Text>
-      </View>
-    );
-  };
+        {item.message}
+      </Text>
+      <Text style={styles.timestamp}>
+        {new Date(item.timestamp).toLocaleTimeString()}
+      </Text>
+    </View>
+  );
+};
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -144,7 +153,7 @@ if (!runningTrip) {
           contentContainerStyle={{ padding: 10 }}
         />
 
-        <View style={styles.inputContainer} className='mb-32'>
+        <View style={styles.inputContainer} >
           <TextInput
             className='h-12'
             style={styles.input}
@@ -170,11 +179,13 @@ const styles = StyleSheet.create({
   },
   myMessage: {
     backgroundColor: '#007AFF',
+  
     alignSelf: 'flex-end',
   },
   otherMessage: {
     backgroundColor: '#E5E5EA',
     alignSelf: 'flex-start',
+  
   },
   senderName: {
     fontWeight: 'bold',
@@ -209,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderRadius: 20,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center', 
     paddingHorizontal: 15,
     marginLeft: 8,
   },

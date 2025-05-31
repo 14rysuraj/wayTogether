@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import React, { useEffect, useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
@@ -8,18 +8,25 @@ import axios from "axios";
 import { useFocusEffect } from "@react-navigation/native";
 import socket from "@/constants/socket";
 import tripDataStore from "@/store/tripData";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { MaterialIcons } from "@expo/vector-icons";
+
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import { icons } from "@/constants";
 
 const Rides = () => {
   const mapRef = useRef<MapView>(null);
   const lastLocationRef = useRef<any>(null);
+  const bottomSheetRef = useRef<BottomSheet>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [yourLocation, setYourLocation] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [riderDistances, setRiderDistances] = useState<any[]>([]);
+   const [selectedRider, setSelectedRider] = useState<any>(null);
+
   const runningTrip = tripDataStore((state: any) => state.runningTrip);
   const setRunningTrip = tripDataStore((state: any) => state.setRunningTrip);
-  const clearRunningTrip = tripDataStore(
-    (state: any) => state.clearRunningTrip
-  );
+  const clearRunningTrip = tripDataStore((state: any) => state.clearRunningTrip);
 
   const { user } = useUser();
 
@@ -74,37 +81,37 @@ const Rides = () => {
 
       setHasPermission(true);
 
-      locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          distanceInterval: 10,
-          timeInterval: 1000,
-        },
-        (location) => {
-          const { latitude, longitude } = location.coords;
-          const last = lastLocationRef.current;
+    locationSubscription = await Location.watchPositionAsync(
+  {
+    accuracy: Location.Accuracy.Balanced,
+    distanceInterval: 10,
+    timeInterval: 10000,
+  },
+  (location) => {
+    const { latitude, longitude } = location.coords;
+    const last = lastLocationRef.current;
 
-          if (
-            last &&
-            Math.abs(latitude - last.latitude) < 0.0001 &&
-            Math.abs(longitude - last.longitude) < 0.0001
-          ) {
-            return;
-          }
+    if (
+      last &&
+      Math.abs(latitude - last.latitude) < 0.0001 &&
+      Math.abs(longitude - last.longitude) < 0.0001
+    ) {
+      return;
+    }
 
-          lastLocationRef.current = { latitude, longitude };
-          setYourLocation({ latitude, longitude });
+    lastLocationRef.current = { latitude, longitude };
+    setYourLocation({ latitude, longitude });
 
-          socket.emit("update-location", {
-            tripId: runningTrip?._id,
-            riderId: user?.id,
-            latitude,
-            longitude,
-          });
+    socket.emit("update-location", {
+      tripId: runningTrip?._id,
+      riderId: user?.id,
+      latitude,
+      longitude,
+    });
 
-          setIsLoading(false);
-        }
-      );
+    setIsLoading(false);
+  }
+);
     };
 
     if (runningTrip) startLocationUpdates();
@@ -119,6 +126,7 @@ const Rides = () => {
       socket.emit("leave-trip", {
         tripId: runningTrip?._id,
         userId: user?.id,
+        email:user?.emailAddresses[0].emailAddress
       });
       console.log("Leaving trip:", runningTrip?._id);
       clearRunningTrip();
@@ -126,6 +134,36 @@ const Rides = () => {
       console.error("Failed to leave trip:", error);
     }
   };
+
+useEffect(() => {
+  if (!yourLocation || !runningTrip?.riders?.length) return;
+
+  const updatedDistances = runningTrip.riders
+    .filter(
+      (r: any) =>
+        r.id !== user?.id &&
+        r.latitude !== undefined &&
+        r.longitude !== undefined
+    )
+    .map((r: any) => {
+      const distance = getHaversineDistance(
+        yourLocation,
+        { latitude: r.latitude, longitude: r.longitude }
+      );
+      return {
+        name: r.name || r.email || "Unknown",
+        distance: distance.toFixed(2), // km with 2 decimals
+      };
+    });
+
+  // Only update if changed
+  if (
+    JSON.stringify(updatedDistances) !== JSON.stringify(riderDistances)
+  ) {
+    setRiderDistances(updatedDistances);
+  }
+}, [yourLocation, runningTrip]);
+  // riderDistances
 
   if (!yourLocation || !runningTrip) {
     return (
@@ -147,22 +185,66 @@ const Rides = () => {
     longitudeDelta: 0.0421,
   };
 
+
+
+  const centerMapOnRider = (latitude: number, longitude: number,rider:any) => {
+      setSelectedRider(rider);
+  mapRef.current?.animateToRegion(
+    {
+      latitude,
+      longitude,
+      latitudeDelta: 0.01, // Zoom in closer to the marker
+      longitudeDelta: 0.01,
+    },
+    900
+  );
+  };
+  
+  const centerMapOnMe = () => {
+    if (yourLocation) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: yourLocation.latitude,
+          longitude: yourLocation.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        500
+      );
+      setSelectedRider(null)
+    }
+  };
+
+
+
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={{ flex: 1 }}>
       <TouchableOpacity
-        className="absolute top-12 right-5 z-50 bg-white p-3 rounded-full shadow-md"
+        style={{
+          position: "absolute",
+          top: 48,
+          right: 20,
+          zIndex: 50,
+          backgroundColor: "white",
+          padding: 12,
+          borderRadius: 24,
+          elevation: 4,
+        }}
         onPress={handleLeaveTrip}
       >
         <Text>Leave Trip</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
+        
 
+     
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
         showsUserLocation
         showsMyLocationButton
         loadingEnabled
-        style={styles.map}
+        style={[styles.map, { marginBottom: 80 }]}
         followsUserLocation
         initialRegion={initialRegion}
       >
@@ -177,11 +259,27 @@ const Rides = () => {
           strokeColor="blue"
           optimizeWaypoints
           precision="high"
-        />
+          />
+          
+
+
+
+             {selectedRider && selectedRider.latitude && selectedRider.longitude && (
+            <MapViewDirections
+              apikey={GOOGLE_API_KEY}
+              origin={yourLocation}
+              destination={{
+                latitude: selectedRider.latitude,
+                longitude: selectedRider.longitude,
+              }}
+              strokeWidth={6}
+              strokeColor="purple"
+              // lineDashPattern={[10, 10]}
+            />
+          )}
 
         {runningTrip?.riders?.map((rider: any) => {
-          if (rider.id === user?.id || !rider.latitude || !rider.longitude)
-            return null;
+          if (rider.id === user?.id || !rider.latitude || !rider.longitude) return null;
           return (
             <Marker
               key={rider.id}
@@ -195,9 +293,104 @@ const Rides = () => {
           );
         })}
       </MapView>
-    </View>
+
+<BottomSheet ref={bottomSheetRef} index={0} snapPoints={["12%", "25%", "40%"]}>
+  <BottomSheetView style={{ padding: 16 }}>
+    {/* Center on Me Icon Button */}
+    <TouchableOpacity
+      onPress={centerMapOnMe}
+      style={{
+        alignSelf: "flex-end",
+        marginBottom: 8,
+        backgroundColor: "#f1f1f1",
+        borderRadius: 20,
+        padding: 8,
+      }}
+      accessibilityLabel="Center map on me"
+    >
+      <MaterialIcons name="my-location" size={24} color="#007AFF" />
+    </TouchableOpacity>
+
+    <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 12 }}>
+      Riders & Distance
+    </Text>
+
+    {riderDistances.length === 0 ? (
+      <Text style={{ fontStyle: "italic", color: "gray" }}>
+        No other riders found.
+      </Text>
+    ) : (
+      runningTrip?.riders
+        ?.filter(
+          (r: any) =>
+            r.id !== user?.id &&
+            r.latitude !== undefined &&
+            r.longitude !== undefined
+        )
+        .map((rider: any, index: number) => (
+          <TouchableOpacity
+            key={rider.id}
+            onPress={() => centerMapOnRider(rider.latitude, rider.longitude,rider)}
+            style={{
+              backgroundColor: "#f1f1f1",
+              padding: 12,
+              borderRadius: 10,
+              marginBottom: 10,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontWeight: "500", fontSize: 15 }}>
+              🧍 {rider.name || rider.email || "Unknown"}
+            </Text>
+            <Text style={{ fontSize: 14, color: "#333" }}>
+              📍
+              {getHaversineDistance(
+                yourLocation,
+                { latitude: rider.latitude, longitude: rider.longitude }
+              ).toFixed(2)}{" "}
+              km
+            </Text>
+          </TouchableOpacity>
+        ))
+    )}
+  </BottomSheetView>
+</BottomSheet>
+
+      </View>
+      </GestureHandlerRootView>
   );
 };
+
+
+function getHaversineDistance(
+  coord1: { latitude: number; longitude: number },
+  coord2: { latitude: number; longitude: number }
+) {
+  const toRad = (x: number) => (x * Math.PI) / 180;
+
+  const lat1 = coord1.latitude;
+  const lon1 = coord1.longitude;
+  const lat2 = coord2.latitude;
+  const lon2 = coord2.longitude;
+
+  const R = 6371; // Earth radius in km
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+
+
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
@@ -209,7 +402,3 @@ const styles = StyleSheet.create({
 });
 
 export default Rides;
-
-function startLocationUpdates() {
-  throw new Error("Function not implemented.");
-}

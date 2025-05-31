@@ -61,7 +61,7 @@ const OnBoarding = () => {
           <CustomButton
               title={isLastSlide ? "Get Started" : "Next"}
               className="w-full"
-              onPress={() => isLastSlide ? router.replace("/(auth)/sign-up") : swiperRef.current?.scrollBy(1)}
+              onPress={() => isLastSlide ? router.replace("/(auth)/sign-in") : swiperRef.current?.scrollBy(1)}
               
           />
   

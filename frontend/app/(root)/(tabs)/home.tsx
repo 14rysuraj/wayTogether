@@ -32,6 +32,8 @@ import socket from "@/constants/socket";
 
 const home = () => {
   const { user } = useUser();
+
+
   const googlePlacesApiKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const trip = tripStore((state) => state.trip);
@@ -44,7 +46,7 @@ const home = () => {
 
  
 
-
+// console.log(user?.setProfileImage)
 
 
   useEffect(() => {
@@ -200,7 +202,11 @@ const home = () => {
                 <Text className="text-xl font-Jakarta font-semibold">
                   Welcome
                 </Text>
-                <Text className="text-black">{user?.emailAddresses[0].emailAddress}</Text>
+                <Text className="text-black">
+
+                  {user?.fullName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? ""}
+                  
+</Text>
               </View>
             </View>
             <TouchableOpacity>
@@ -247,41 +253,35 @@ const home = () => {
           </View>
 
 
-          <Text className="px-4 my-10 text-xl font-JakartaSemiBold">
-            Current Trip
-          </Text>
-          
-          <TouchableOpacity>
-            <View className="flex flex-row items-center justify-between  px-4 rounded-xl">
-              <Text className=" text-xl  font-JakartaSemiBold">Trip Name</Text>
-              <Text className="text-xl font-JakartaSemiBold">Destination</Text>
-            </View>
+      <Text className="px-4 mt-10 mb-4 text-xl font-JakartaSemiBold">Current Trip</Text>
 
-            <View className="flex flex-row items-center justify-between bg-neutral-100 px-4 rounded-xl mt-2">
-              <Text className="text-base font-JakartaSemiBold">First Trip</Text>
-              <Text className="text-base font-JakartaSemiBold">Pokhara</Text>
-            </View>
-          </TouchableOpacity>
+<TouchableOpacity className="mx-4 mb-6">
+  <View className="flex flex-row justify-between px-4 py-3 rounded-t-xl bg-neutral-200">
+    <Text className="text-base text-gray-600 font-JakartaMedium">Trip Name</Text>
+    <Text className="text-base text-gray-600 font-JakartaMedium">Destination</Text>
+  </View>
+  <View className="flex flex-row justify-between px-4 py-4 bg-white rounded-b-xl shadow-sm">
+    <Text className="text-lg font-JakartaSemiBold text-black">First Trip</Text>
+    <Text className="text-lg font-JakartaSemiBold text-black">Pokhara</Text>
+  </View>
+</TouchableOpacity>
 
 
+<Text className="px-4 mb-4 text-xl font-JakartaSemiBold">Recent Trip</Text>
 
-          <Text className="px-4 my-10 text-xl font-JakartaSemiBold">
-            Recent Trip
-          </Text>
+<TouchableOpacity className="mx-4">
+  <View className="flex flex-row justify-between px-4 py-3 rounded-t-xl bg-neutral-200">
+    <Text className="text-base text-gray-600 font-JakartaMedium">Trip Name</Text>
+    <Text className="text-base text-gray-600 font-JakartaMedium">Destination</Text>
+  </View>
+  <View className="flex flex-row justify-between px-4 py-4 bg-white rounded-b-xl shadow-sm">
+    <Text className="text-lg font-JakartaSemiBold text-black">Pokhara Trip</Text>
+    <Text className="text-lg font-JakartaSemiBold text-black">Pokhara</Text>
+  </View>
+</TouchableOpacity>
 
 
-          <TouchableOpacity>
-            <View className="flex flex-row items-center justify-between  px-4 rounded-xl">
-              <Text className=" text-xl  font-JakartaSemiBold">Trip Name</Text>
-              <Text className="text-xl font-JakartaSemiBold">Destination</Text>
-            </View>
-
-            <View className="flex flex-row items-center justify-between bg-neutral-100 px-4 rounded-xl mt-2">
-              <Text className="text-base font-JakartaSemiBold">Pokhara Trip</Text>
-              <Text className="text-base font-JakartaSemiBold">Pokhara</Text>
-            </View>
-          </TouchableOpacity>
-
+       
 
           <ReactNativeModal
             isVisible={showJoinTrip}

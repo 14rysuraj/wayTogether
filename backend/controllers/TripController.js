@@ -21,7 +21,8 @@ export const createTrip = async (req, res) => {
       }
         
       
-        const userId = riders[0].id;
+      const userId = riders[0].id;
+      
         
         const runningTrip = await Trip.findOne({
             status: 'running',

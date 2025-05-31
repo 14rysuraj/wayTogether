@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const userSchema=mongoose.Schema({
+const userSchema=new mongoose.Schema({
     name: {
         type: String,
         required: true,
@@ -11,21 +11,18 @@ const userSchema=mongoose.Schema({
         unique: true,
     },
     password: {
-        type: String,
+        type: String,  
+        minlength:[6,"password must be greater that 6 chracter"],
         required: true,
     },
-    image: {
+    profile: {
         type: String,
         default: "",
     },
-    is_online: {
-        type: String,
-        default:'0',
-    },
+  
  
-}, {
-    timestamps: true,
 }
+
 
 )
 

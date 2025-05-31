@@ -58,6 +58,11 @@ const CustomButton = (
         onPress={onPress}
         className={` rounded-full flex flex-row justify-center items-center shadow-md shadow-neutral-400/70 p-3 ${getBgVarientStyle(bgVariant)} ${className}` }{...props}
     >
+        {IconLeft && (
+            <View className="mr-4">
+                <Image source={ IconLeft} className='cover w-6 h-6' />
+            </View>
+        )}
     
         <Text className={`text-lg font-bold ${getTextVariantStyle(textVariant)} `}>{title}</Text>
        

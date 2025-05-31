@@ -44,7 +44,7 @@ io.on("connection", (socket) => {
           longitude
         );
 
-        socket.broadcast.emit("locationUpdate", updatedTrip);
+        io.to(tripId).emit("locationUpdate", updatedTrip);
         console.log("location updated");
       } catch (error) {
         console.error("Socket update-location error:", error.message);
@@ -125,7 +125,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("leave-trip", async ({ tripId, userId }) => {
+  socket.on("leave-trip", async ({ tripId, userId,email }) => {
     try {
       const trip = await Trip.findById(tripId);
       if (!trip) {
@@ -141,7 +141,7 @@ io.on("connection", (socket) => {
       socket.emit("trip-data", null);
       socket
         .to(tripId)
-        .emit("trip:notification", { message: `${userId} left the trip ` });
+        .emit("trip:notification", { message: `${email} left the trip ` });
       console.log(`User ${userId} left trip ${tripId}`);
     } catch (error) {
       console.error("Leave trip error:", error.message);

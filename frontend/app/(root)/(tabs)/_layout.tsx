@@ -23,7 +23,7 @@ const TabIcon = ({
       >
         <Image
           source={source}
-          tintColor="white"
+          tintColor="#0286ff"
           resizeMode="contain"
           className="w-7 h-7"
         />
@@ -46,18 +46,18 @@ export default function Layout() {
       tabBarInactiveTintColor: "white",
       tabBarShowLabel: false,
       tabBarStyle: {
-        backgroundColor: "#333333",
-        borderRadius: 50,
+        backgroundColor: "white",
+        borderRadius: 10,
        
         overflow: "hidden",
-        marginHorizontal: 20,
-        marginBottom: 20,
+      
+        
         height: 78,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         flexDirection: "row",
-        position: "absolute",
+        
       },
     }}
   >
