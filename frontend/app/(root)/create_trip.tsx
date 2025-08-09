@@ -16,6 +16,7 @@ import { useSignIn, useUser } from "@clerk/clerk-expo";
 import axios from "axios";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 const create_trip = () => {
 
   const trip = tripStore((state) => state.trip);
