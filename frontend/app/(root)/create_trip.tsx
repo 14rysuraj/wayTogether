@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, Image, TextInput } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import tripStore from "@/store/trip";
+import tripDataStore from "@/store/tripData";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { icons } from "@/constants";
 import { router } from "expo-router";
@@ -13,12 +14,13 @@ import CustomButton from "@/components/CustomButton";
 import MapViewDirections from "react-native-maps-directions";
 import { useSignIn, useUser } from "@clerk/clerk-expo";
 import axios from "axios";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const create_trip = () => {
 
   const trip = tripStore((state) => state.trip);
-  const { user } = useUser();
   const setTrip = tripStore((state) => state.setTrip);
+  const setRunningTrip = tripDataStore((state: any) => state.setRunningTrip);
   const [isRoute, setIsRoute] = useState<boolean>(false);
   const googlePlacesApiKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY!;
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -38,6 +40,7 @@ const create_trip = () => {
 
 
 
+  console.log(trip);
   
 
 
@@ -114,35 +117,39 @@ useEffect(() => {
         destinationLongitude: trip.location.destinationLongitude,
         destinationAddress: trip.location.destinationAddress,
       },
-      riders: [
+      riders: 
         {
-          id: user?.id ?? '',
-          name: user?.firstName ?? '',
-          email: user?.primaryEmailAddress?.emailAddress ?? '',
           latitude: trip.location.userLatitude,
           longitude: trip.location.userLongitude,
           address: trip.location.userAddress,
-          status: "pending",
+         
         },
-      ],
-      status: "running",
+      
+     
     };
   
     try {
+      const token = await AsyncStorage.getItem('userToken');
       const response = await axios.post(`${API_BASE_URL}/createTrip`, tripData, {
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
       });
   
       console.log('Trip created:', response.data);
-  
-      setTrip(response.data);
+      if (response.data.status===400)
+      {
+        return alert(response.data.message);
+      }
+
+      // Update the trip store with the created trip
+      setRunningTrip(response.data);
   
       router.push("/(root)/(tabs)/rides");
     } catch (error:any) {
-      console.error('Error creating trip:', error);
-      alert(error.response.data.message);
+      console.log('Error creating trip:', error);
+      alert(error.response?.data?.message || 'Error creating trip');
     }
   };
 

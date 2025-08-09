@@ -6,6 +6,11 @@ import { Image, ImageSourcePropType, View } from 'react-native';
 import { green } from 'react-native-reanimated/lib/typescript/Colors';
 import 'react-native-get-random-values';
 import React from 'react';
+import socket from '@/constants/socket';
+import tripDataStore from '@/store/tripData';
+import { useEffect } from 'react';
+import {useToast} from 'react-native-toast-notifications';
+import profileStore from '@/store/profile';
 
 
 const TabIcon = ({
@@ -34,8 +39,44 @@ const TabIcon = ({
 
 export default function Layout() {
 
+  const runningTrip = tripDataStore((state: any) => state.runningTrip);
+  const setRunningTrip = tripDataStore((state: any) => state.setRunningTrip);
+  const toast = useToast();
+  const profile=profileStore((state:any)=>state.profile)
+
+
+  useEffect(() => { 
+    
+    if (runningTrip?._id)
+    {
+      socket.emit("join-room", runningTrip._id);
+      console.log("Joined trip room:", runningTrip._id);
+    }
+  
+},[runningTrip?._id]);
+    
+
+  useEffect(() => {
+  const handleTripUpdate = (data: any) => {
+    console.log("Trip Update:", data);
 
     
+    toast.show(data.message, { type: "success", duration: 3000 });
+
+    
+    setRunningTrip(data.trip);
+  };
+
+    socket.on("trip:update", handleTripUpdate);
+    socket.on("trip:leave", (data:any) => { 
+      toast.show(data.message, { type: "warning", duration: 3000 });
+        setRunningTrip(data.trip)
+    })
+
+  return () => {
+    socket.off("trip:update", handleTripUpdate);
+  };
+}, []);
 
 
   return (

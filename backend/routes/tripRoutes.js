@@ -1,13 +1,14 @@
 import express from 'express';
 import { createTrip, getRunningTrip, joinTrip, leaveTrip, trackRiderLocation } from '../controllers/TripController.js';
+import { isAuthenticated } from '../middlewares/auth.js';
 
 
 const router = express.Router();
 
-router.route("/createTrip").post(createTrip);
-router.route("/joinTrip").post(joinTrip);
-router.route("/getRunningTrip/:userId").get(getRunningTrip);
+router.post("/createTrip",isAuthenticated,createTrip);
+router.post("/joinTrip",isAuthenticated,joinTrip);
+router.get("/getRunningTrip",isAuthenticated,getRunningTrip);
 router.route("/trackRiderLocation").post(trackRiderLocation);
-router.route("/leave-trip").post(leaveTrip);
+router.post("/leave-trip",isAuthenticated,leaveTrip);
 
 export default router;

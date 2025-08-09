@@ -15,6 +15,8 @@ import { ClerkProvider, ClerkLoaded } from "@clerk/clerk-expo";
 import "react-native-reanimated";
 import "./global.css";
 import { LogBox } from "react-native";
+import { SocketProvider } from "@/constants/SocketProvider";
+import { ToastProvider } from 'react-native-toast-notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,13 +55,24 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+
       <ClerkLoaded>
+          <ToastProvider
+      duration={6000}
+      placement="top"
+      successColor="#4BB543"
+      warningColor="#FFA500"
+      dangerColor="#FF0000"
+    >
+        <SocketProvider>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(root)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
-        </Stack>
+          </Stack>
+          </SocketProvider>
+          </ToastProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );

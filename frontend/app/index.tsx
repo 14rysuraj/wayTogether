@@ -1,18 +1,24 @@
-import { useAuth } from "@clerk/clerk-expo";
+import React, { useEffect, useState } from "react";
 import { Redirect } from "expo-router";
-import React from "react";
+import { validateToken } from "@/utils/auth";
+
 
 const Page = () => {
-  const { isSignedIn } = useAuth();
+  const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
 
-  if (isSignedIn)
-  return <Redirect href="/(root)/(tabs)/home" />;
-  // return <Redirect href="/(root)/chat" />;
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isValid = await validateToken();
+      setIsSignedIn(isValid);
+    };
+    checkAuth();
+  }, []);
 
+  if (isSignedIn === null) return null;
 
-  return <Redirect href="/(auth)/welcome" />;
-
-
+  return isSignedIn
+    ? <Redirect href="/(root)/(tabs)/home" />
+    : <Redirect href="/(auth)/welcome" />;
 };
 
 export default Page;

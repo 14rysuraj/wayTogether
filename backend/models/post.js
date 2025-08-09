@@ -9,6 +9,9 @@ const commentSchema = new mongoose.Schema({
         type: String,
         required:true
     },
+    name: {
+        type:String
+    },
     text: {
         type: String,
         required:true
@@ -22,8 +25,9 @@ const commentSchema = new mongoose.Schema({
 
 const postSchema = new mongoose.Schema({
     userId: {
-        type: String,
-        required:true
+        type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
     },
     content: {
         type:String,

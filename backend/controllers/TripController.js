@@ -1,7 +1,8 @@
+import e from "express";
 import Trip from "../models/Trip.js";
-
-
-
+import { io } from "../socketServer.js";
+import { Socket } from "socket.io";
+import { nanoid } from "nanoid";
 
 
 export const createTrip = async (req, res) => {
@@ -9,11 +10,13 @@ export const createTrip = async (req, res) => {
       const {
         name,
         password,
-        startDate = null,      
-        endDate=null,
+        startDate ,      
         location,
-        riders = [],
+        riders,
+  
       } = req.body;
+
+      const user = req.user;
   
       // Basic validation
       if (!name || !password || !location) {
@@ -21,30 +24,43 @@ export const createTrip = async (req, res) => {
       }
         
       
-      const userId = riders[0].id;
+      const userId = user._id;;
       
         
         const runningTrip = await Trip.findOne({
             status: 'running',
             riders: {
               $elemMatch: {
-                id: userId,
+                _id: userId,
               },
             },
           });
         if (runningTrip) {
-            return res.status(409).json({ message: 'User already has a running trip.' });
+            return res.status(400).json({ message: 'User already has a running trip.' });
         }
+      
+     
+          
+        const shortId = nanoid(5);
+        
   
       // Create a new Trip instance
       const newTrip = new Trip({
+        tripId: shortId,
         name,
         password,
         startDate,
-        endDate,
         location,
-        riders,
-        status: 'running',
+        riders: [{
+          _id: userId,
+          name: user.name,
+          email: user.email,
+          latitude: riders.latitude,
+          longitude: riders.longitude,
+          address: riders.address,
+        
+        }],
+        createdBy:user._id
       });
   
       // Save the trip to the database
@@ -58,63 +74,75 @@ export const createTrip = async (req, res) => {
     }
   };
 
-  export const joinTrip = async (req, res) => {
-    try {
-      const { password, rider } = req.body;
-  
-      // Validate required fields
-      if (!password || !rider || !rider.id) {
-        return res.status(400).json({ message: 'Password and rider information are required.' });
-      }
-  
-      // Find a running trip with the given password
-      const trip = await Trip.findOne({
-        status: 'running',
-        password:password// shorthand
-      });
-  
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found or incorrect password.' });
-      }
-  
-      // Check if the rider is already part of the trip
-      const existingRider = trip.riders.find((r) => r.id === rider.id);
-      if (existingRider) {
-        return res.status(409).json({ message: 'Rider is already part of the trip.' });
-      }
-  
-      // Add the new rider
-      trip.riders.push({
-        ...rider,
-        status: 'pending', // Default status
-      });
-  
-      await trip.save();
-  
-      res.status(200).json({ message: 'Rider successfully added to the trip.', trip });
-    } catch (error) {
-      console.error('Error joining trip:', error);
-      res.status(500).json({ message: 'Server error while joining trip.' });
+export const joinTrip = async (req, res) => {
+  try {
+    const { password, tripId, rider } = req.body;
+
+    if (!password || !rider) {
+      return res.status(400).json({ message: "Password and rider info required." });
     }
-  };
+
+    const trip = await Trip.findOne({
+      tripId: tripId,
+       password,
+      status: "running",
+      
+     
+    });
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found or incorrect password." });
+    }
+
+    const user = req.user;
+
+    const exists = trip.riders.some((r) => r._id.equals(user._id));
+    if (exists) {
+      return res.status(409).json({ message: "Rider already in the trip." });
+    }
+
+    const newRider = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      latitude: rider.latitude || 0,
+      longitude: rider.longitude || 0,
+      address: rider.address || "",
+    };
+
+    trip.riders.push(newRider);
+    await trip.save();
+
+   
+    
+    io.to(trip._id.toString()).emit("trip:update", {
+      message: `${user.name} joined the trip.`,
+      trip,
+      newRider,
+    });
+    console.log("Trip updated");
+
+    res.status(200).json({ message: "Rider added successfully.", trip });
+  } catch (error) {
+    console.error("Join trip error:", error);
+    res.status(500).json({ message: "Server error while joining trip." });
+  }
+};
 
 
   export const getRunningTrip = async (req, res) => {
     try {
-      const userId = req.body; // Assuming userId is passed as a query parameter
+      const user = req.user;
   
-      if (!userId) {
-        return res.status(400).json({ message: 'User ID is required.' });
-      }
-  
-      // Find the active trip for the user
+      
+      
       const activeTrip = await Trip.findOne({
-        'riders.id': userId,
+        'riders._id': user._id,
         status: 'running',
       });
   
       if (!activeTrip) {
-        return res.status(404).json({ message: 'No active trip found for this user.' });
+        return res.status(400).json({ message: 'No active trip found for this user.' });
       }
   
       res.status(200).json(activeTrip);
@@ -164,28 +192,40 @@ export const trackRiderLocation = async (req, res) => {
 
 export const leaveTrip = async (req, res) => {
     try {
-        const { userId,tripId } = req.body;
+      const { tripId } = req.body;
+      const user = req.user;
+
     
         // Validate required fields
-        if (!userId) {
+        if (!user) {
           return res.status(400).json({ message: 'User ID is required.' });
         }
     
         // Find the trip that the rider is part of
-      const trip = await Trip.findOne({
-          _id: tripId,
-          'riders.id': userId,
-          status: 'running',
-        });
+     const trip = await Trip.findOne({
+  _id: tripId,
+  status: 'running',
+  riders: { $elemMatch: { _id: user._id } },
+});
     
         if (!trip) {
           return res.status(404).json({ message: 'Trip not found or rider not part of any trip.' });
         }
     
         // Remove the rider from the trip
-        trip.riders = trip.riders.filter((rider) => rider.id !== userId);
+       trip.riders = trip.riders.filter((rider) => rider._id.toString() !== user._id.toString());
     
-        await trip.save();
+      await trip.save();
+      
+
+
+
+      io.to(trip._id.toString()).emit("trip:leave", { 
+        message: `${user.name} left the trip.`,
+        trip,
+       });
+      
+    
     
         res.status(200).json({ message: 'Rider left the trip successfully.', trip });
       } catch (error) {

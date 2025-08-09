@@ -1,13 +1,22 @@
+
 import mongoose from 'mongoose';
 
 const riderSchema = new mongoose.Schema({
-  id: { type: String, required: true },
+  _id: mongoose.Schema.Types.ObjectId,
   name: String,
   email: String,
   latitude: Number,
   longitude: Number,
   address: String,
-  status: { type: String, default: 'pending' },
+  status: 
+  {
+    type: String,
+    enum: ['online', 'offline'],
+    default: 'online',
+   
+  }
+  
+ 
 });
 
 const tripLocationSchema = new mongoose.Schema({
@@ -20,13 +29,25 @@ const tripLocationSchema = new mongoose.Schema({
 });
 
 const tripSchema = new mongoose.Schema({
+  tripId: { type: String, required: true },
   name: { type: String, required: true },
   password: { type: String, required: true },
-  startDate: String,
-  endDate: String,
+  startDate: {
+    type: Date,
+    default:Date.now
+  },
+  endDate: {
+    type: Date,
+    default: null
+  },
   riders: [riderSchema],
-  status: { type: String, default: 'running' },
+  status: {
+    type: String,
+    enum: ['running', 'completed', 'cancelled'],
+    default: 'running'
+  },
   location: tripLocationSchema,
+  createdBy:mongoose.Schema.Types.ObjectId,
 });
 
 const Trip = mongoose.model('Trip', tripSchema);

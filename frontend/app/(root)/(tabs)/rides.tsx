@@ -1,5 +1,5 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE,AnimatedRegion } from "react-native-maps";
 import React, { useEffect, useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
@@ -10,9 +10,12 @@ import socket from "@/constants/socket";
 import tripDataStore from "@/store/tripData";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { icons } from "@/constants";
+import profileStore from "@/store/profile";
+import tripStore from "@/store/trip";
 
 const Rides = () => {
   const mapRef = useRef<MapView>(null);
@@ -21,30 +24,45 @@ const Rides = () => {
   const [hasPermission, setHasPermission] = useState(false);
   const [yourLocation, setYourLocation] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTrip, setIsLoadingTrip] = useState(false);
   const [riderDistances, setRiderDistances] = useState<any[]>([]);
-   const [selectedRider, setSelectedRider] = useState<any>(null);
-
+  const [selectedRider, setSelectedRider] = useState<any>(null);
+  const profile = profileStore((state: any) => state.profile);
   const runningTrip = tripDataStore((state: any) => state.runningTrip);
   const setRunningTrip = tripDataStore((state: any) => state.setRunningTrip);
   const clearRunningTrip = tripDataStore((state: any) => state.clearRunningTrip);
+  const yourMarkerRef = useRef<any>(null);
+  const tripData=tripStore((state:any)=>state.initialTrip)
 
-  const { user } = useUser();
+ useEffect(() => {
+  if (yourMarkerRef.current && yourLocation) {
+    // Only animate on Android
+    if (Platform.OS === "android") {
+      yourMarkerRef.current.animateMarkerToCoordinate(yourLocation, 5000);
+    }
+  }
+}, [yourLocation]);
+  
 
   const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL!;
   const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY!;
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (user?.id) socket.emit("get-trip", user.id);
-    }, [user?.id, runningTrip])
-  );
+
+
 
   useEffect(() => {
-    socket.connect();
 
-    const handleTripData = (data: any) => {
-      setRunningTrip(data);
-    };
+    // const handleTripData = (data: any) => {
+    //   setRunningTrip(data.trip);
+    //   alert(data.message);
+    // };
+
+
+
+
+  
+
+
 
     const handleLocationUpdate = (updatedTrip: any) => {
       if (!runningTrip || updatedTrip._id === runningTrip._id) {
@@ -52,24 +70,34 @@ const Rides = () => {
       }
     };
 
-    socket.on("connect", () => {
-      console.log("Connected to server", user?.emailAddresses[0]?.emailAddress);
-      socket.emit("get-trip", user?.id);
-    });
-
-    socket.on("trip-data", handleTripData);
+   
     socket.on("locationUpdate", handleLocationUpdate);
 
-    return () => {
-      socket.off("connect");
-      socket.off("trip-data", handleTripData);
-      socket.off("locationUpdate", handleLocationUpdate);
-      socket.disconnect();
-    };
-  }, [user?.id]);
+   
+  }, []);
 
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setHasPermission(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const address = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      setYourLocation({
+        latitude: location.coords.latitude,
+        longitude:location.coords.longitude
+      })
+    });
+
+
 
     const startLocationUpdates = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -78,6 +106,7 @@ const Rides = () => {
         setIsLoading(false);
         return;
       }
+    
 
       setHasPermission(true);
 
@@ -104,36 +133,97 @@ const Rides = () => {
 
     socket.emit("update-location", {
       tripId: runningTrip?._id,
-      riderId: user?.id,
+      riderId: profile._id,
       latitude,
       longitude,
     });
 
     setIsLoading(false);
   }
-);
+    );
+      
+    
     };
+
 
     if (runningTrip) startLocationUpdates();
 
     return () => {
       if (locationSubscription) locationSubscription.remove();
     };
-  }, [runningTrip, user?.id]);
+  }, []);
 
   const handleLeaveTrip = async () => {
     try {
-      socket.emit("leave-trip", {
-        tripId: runningTrip?._id,
-        userId: user?.id,
-        email:user?.emailAddresses[0].emailAddress
-      });
-      console.log("Leaving trip:", runningTrip?._id);
-      clearRunningTrip();
+      const tripId = runningTrip?._id;
+      const token = await AsyncStorage.getItem('userToken');
+
+      const response = await axios.post(`${API_BASE_URL}/leave-trip`, { tripId }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+     });
+      if(response.status === 200) {
+        socket.emit("leave-room", tripId.toString());
+        console.log("leaving room " + tripId.toString());
+        clearRunningTrip();
+      }
+      else {
+        console.error("Failed to leave trip:", response.data);
+      }
     } catch (error) {
       console.error("Failed to leave trip:", error);
     }
   };
+
+
+
+
+
+
+    const fetchRunningTrip = async () => {
+      try {
+        setIsLoadingTrip(true);
+    
+        const res = await axios.get(`${API_BASE_URL}/getRunningTrip`, 
+          
+        );
+        if (res.data) {
+          setRunningTrip(res.data);
+          setIsLoadingTrip(false);
+        }
+      } catch (e: any) {
+        console.log("Error fetching running trip", e);
+        if (e.response?.status === 400) {
+          // No active trip found, this is expected
+          setRunningTrip(null);
+        }
+      } finally {
+        setIsLoadingTrip(false);
+      }
+    }
+
+
+
+  
+  useEffect(() => {
+    fetchRunningTrip();
+  },[])
+
+  // Refresh trip data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchRunningTrip();
+    }, [])
+  );
+    
+
+
+  
+
+
+  
 
 useEffect(() => {
   if (!yourLocation || !runningTrip?.riders?.length) return;
@@ -141,7 +231,7 @@ useEffect(() => {
   const updatedDistances = runningTrip.riders
     .filter(
       (r: any) =>
-        r.id !== user?.id &&
+        r._id !== profile._id &&
         r.latitude !== undefined &&
         r.longitude !== undefined
     )
@@ -165,17 +255,42 @@ useEffect(() => {
 }, [yourLocation, runningTrip]);
   // riderDistances
 
-  if (!yourLocation || !runningTrip) {
-    return (
-      <View style={styles.center}>
-        <Text>No trip created or joined</Text>
-      </View>
-    );
-  }
+ if (isLoadingTrip) {
+  return (
+    <View style={styles.center}>
+      <Text style={{ fontSize: 18, color: '#666', textAlign: 'center' }}>
+        Loading trip data...
+      </Text>
+    </View>
+  );
+}
+
+ if (!runningTrip) {
+  return (
+    <View style={styles.center}>
+      <Text style={{ fontSize: 18, color: '#666', textAlign: 'center', marginBottom: 20 }}>
+        No trip created or joined
+      </Text>
+      <Text style={{ fontSize: 14, color: '#999', textAlign: 'center' }}>
+        Create a new trip or join an existing one to get started
+      </Text>
+    </View>
+  );
+}
+
+ if (!yourLocation) {
+  return (
+    <View style={styles.center}>
+      <Text style={{ fontSize: 18, color: '#666', textAlign: 'center' }}>
+        Getting your location...
+      </Text>
+    </View>
+  );
+}
 
   const destination = {
-    latitude: runningTrip.location.destinationLatitude,
-    longitude: runningTrip.location.destinationLongitude,
+    latitude: runningTrip?.location.destinationLatitude,
+    longitude: runningTrip?.location.destinationLongitude,
   };
 
   const initialRegion = {
@@ -217,7 +332,12 @@ useEffect(() => {
 
 
 
+
+    
+
+
   return (
+    
     <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={{ flex: 1 }}>
       <TouchableOpacity
@@ -248,7 +368,12 @@ useEffect(() => {
         followsUserLocation
         initialRegion={initialRegion}
       >
-        <Marker coordinate={initialRegion} title="Your Location" />
+        <Marker
+  ref={yourMarkerRef}
+  coordinate={yourLocation}
+  title="Your Location"
+  pinColor="blue"
+/>
         {destination && <Marker coordinate={destination} title="Destination" />}
 
         <MapViewDirections
@@ -273,16 +398,17 @@ useEffect(() => {
                 longitude: selectedRider.longitude,
               }}
               strokeWidth={6}
-              strokeColor="purple"
-              // lineDashPattern={[10, 10]}
+              strokeColor="green"
+              lineDashPattern={[10, 10]}
+              precision="high"
             />
           )}
 
         {runningTrip?.riders?.map((rider: any) => {
-          if (rider.id === user?.id || !rider.latitude || !rider.longitude) return null;
+          if (rider._id===profile._id || !rider.latitude || !rider.longitude) return null;
           return (
             <Marker
-              key={rider.id}
+              key={rider._id}
               coordinate={{
                 latitude: rider.latitude,
                 longitude: rider.longitude,
@@ -323,13 +449,13 @@ useEffect(() => {
       runningTrip?.riders
         ?.filter(
           (r: any) =>
-            r.id !== user?.id &&
+            r._id !== profile._id &&
             r.latitude !== undefined &&
             r.longitude !== undefined
         )
         .map((rider: any, index: number) => (
           <TouchableOpacity
-            key={rider.id}
+            key={rider._id}
             onPress={() => centerMapOnRider(rider.latitude, rider.longitude,rider)}
             style={{
               backgroundColor: "#f1f1f1",

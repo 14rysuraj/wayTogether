@@ -2,13 +2,9 @@ import { create } from 'zustand';
 
 // Define the Rider interface
 interface Rider {
-  id: string | number;
-  name: string;
-  email: string;
   latitude: number;
   longitude: number;
   address: string;
-  status: string;
 }
 
 // Define the TripLocation interface
@@ -23,13 +19,9 @@ interface TripLocation {
 
 // Define the Trip interface
 interface Trip {
-  id: string;
   name: string;
-  startDate: string;
-  endDate: string;
   password: string;
   riders: Rider[];
-  status: string;
   location: TripLocation;
 }
 
@@ -42,13 +34,9 @@ interface TripStore {
 
 // Initial state for the trip
 const initialTrip: Trip = {
-  id: '',
   name: '',
-  startDate: '',
-  endDate: '',
   password: '',
   riders: [],
-  status: '',
   location: {
     userLatitude: 0,
     userLongitude: 0,

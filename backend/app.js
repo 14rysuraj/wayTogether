@@ -1,7 +1,7 @@
 import express from 'express';
 import { config } from 'dotenv';
 import cors from 'cors';
-import trip from './routes/TripRoutes.js';
+import trip from './routes/tripRoutes.js';
 import postRoutes from './routes/postRoutes.js'
 import cookieParser from 'cookie-parser';
 import userRoute from './routes/userRoute.js'

@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import socket from '@/constants/socket';  // your configured socket instance
 import tripDataStore from '@/store/tripData';
-import { useUser } from '@clerk/clerk-expo';
+import profileStore from '@/store/profile';
+import { ActivityIndicator } from 'react-native';
+
 
 type Message = {
   _id: string;
@@ -24,24 +26,28 @@ type Message = {
 
 const Chat = () => {
   const runningTrip = tripDataStore((state: any) => state.runningTrip);
-  const { user } = useUser();
-
+  const profile = profileStore((state: any) => state.profile);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const flatListRef = useRef<FlatList<Message>>(null);
+  const [loading, setLoading] = useState<Boolean>(false);
 
   useEffect(() => {
-    if (!runningTrip?._id || !user?.id) return;
+    if (!runningTrip?._id || !profile._id) return;
 
-    // Join the socket room for the trip
-    socket.emit('join-room', runningTrip._id);
+   
 
-    // Fetch previous messages
+    
     socket.emit('fetch-messages', runningTrip._id);
 
     // Listen for previous chat history
     socket.on('chat:history', (msgs) => {
-      setMessages(msgs);
+      setLoading(true);
+       setMessages(msgs);
+      setLoading(false);
+      
+      
     });
 
     // Listen for new messages
@@ -54,10 +60,10 @@ const Chat = () => {
       socket.off('receive-message');
       socket.emit('leave-trip', {
         tripId: runningTrip._id,
-        userId: user.id,
+        userId: profile._id,
       });
     };
-  }, [runningTrip?._id, user?.id]);
+  }, [runningTrip?._id, profile?._id]);
 
 
   // console.log(runningTrip)
@@ -72,12 +78,12 @@ if (!runningTrip) {
 
 
   const sendMessage = () => {
-    if (!input.trim() || !user) return;
+    if (!input.trim() || !profile) return;
 
     const messagePayload = {
       tripId: runningTrip._id,
-      senderId: user.id,
-      senderName: user.firstName || user.emailAddresses[0]?.emailAddress || 'Unknown',
+      senderId: profile._id,
+      senderName: profile.name || profile.email|| 'Unknown',
       message: input.trim(),
     };
 
@@ -87,7 +93,7 @@ if (!runningTrip) {
   };
 
  const renderItem = ({ item }: { item: Message }) => {
-  const isMe = user && item.senderId === user.id;
+  const isMe = profile && item.senderId === profile._id;
   return (
     <View
       style={[
@@ -113,6 +119,16 @@ if (!runningTrip) {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
+
+    { loading ? (
+        <View className='flex h-full items-center justify-center'>
+          <ActivityIndicator/>
+          <Text>Loading chat....</Text>
+          
+        </View>
+        ):
+
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -130,7 +146,7 @@ if (!runningTrip) {
             color: '#222', 
             marginBottom: 4 
           }}>
-            Trip id: <Text style={{ color: '#007AFF' }}>{runningTrip._id || 'Unnamed Trip'}</Text>
+            Trip id: <Text style={{ color: '#007AFF' }}>{runningTrip.tripId || 'Unnamed Trip'}</Text>
           </Text>
           <Text style={{ 
             fontSize: 14, 
@@ -140,6 +156,7 @@ if (!runningTrip) {
           </Text>
         </View>
 
+       
 
         <FlatList
           ref={flatListRef}
@@ -152,6 +169,8 @@ if (!runningTrip) {
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
           contentContainerStyle={{ padding: 10 }}
         />
+
+          
 
         <View style={styles.inputContainer} >
           <TextInput
@@ -166,6 +185,7 @@ if (!runningTrip) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+}
     </SafeAreaView>
   );
 };

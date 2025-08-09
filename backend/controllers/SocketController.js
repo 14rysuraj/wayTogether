@@ -37,7 +37,7 @@ export const updateLocation = async (tripId, riderId, latitude, longitude) => {
         throw new Error("Trip not found.");
     }
     
-    const rider = trip.riders.find(r => r.id === riderId);
+    const rider = trip.riders.find(r => r._id.equals(riderId));
     if (!rider) {
         throw new Error("Rider not found in this trip.");
     }
@@ -50,3 +50,6 @@ export const updateLocation = async (tripId, riderId, latitude, longitude) => {
     
     return trip;
 }
+
+
+

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "react-native-toast-notifications": "^3.4.0"
+  }
+}

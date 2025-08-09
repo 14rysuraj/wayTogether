@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "WayTogethee",
+    "name": "WayTogether",
     "slug": "wayTogether",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -40,7 +40,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-maps",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
